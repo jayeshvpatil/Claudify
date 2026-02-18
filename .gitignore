@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+*.tgz
+
+# Environment variables (Bun auto-loads these)
+.env
+.env.local
+.env.*.local
+
+# Code coverage
+coverage/
+*.lcov
+
+# Logs
+logs/
+*.log
+
+# Caches
+.eslintcache
+.cache
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings (personal overrides — NOT shared)
+.claude/settings.local.json
+
+# Railway local config
+.railway/
