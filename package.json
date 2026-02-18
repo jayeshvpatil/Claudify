@@ -16,7 +16,9 @@
     "qa": "bun run lint && bun run typecheck && bun test",
     "db:migrate": "bun ./scripts/migrate.ts",
     "deploy:dev": "railway up --environment development",
-    "deploy:prod": "railway up --environment production"
+    "deploy:prod": "railway up --environment production",
+    "deploy:gcp": "gcloud run deploy $(jq -r .name package.json)-staging --source . --region us-central1 --allow-unauthenticated --port 3000",
+    "deploy:gcp:prod": "gcloud run deploy $(jq -r .name package.json) --source . --region us-central1 --allow-unauthenticated --port 3000"
   },
   "devDependencies": {
     "@types/bun": "latest",

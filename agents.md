@@ -10,8 +10,10 @@ This guide helps your team use Claude Code effectively on this project.
 | `/test` | Running tests (supports filters, watch, coverage) |
 | `/qa` | Before committing — runs lint + typecheck + test |
 | `/review` | After finishing a feature — code review of changes |
-| `/deploy-dev` | Deploying to staging (includes QA check) |
-| `/deploy-prod` | Deploying to production (strict safety checks) |
+| `/deploy-dev` | Deploying to Railway staging (includes QA check) |
+| `/deploy-prod` | Deploying to Railway production (strict safety checks) |
+| `/deploy-gcp` | Deploying to GCP Cloud Run staging |
+| `/deploy-gcp-prod` | Deploying to GCP Cloud Run production (strict safety checks) |
 | `/db-migrate` | Creating or running database migrations |
 | `/new-feature` | Scaffolding a new feature (routes, tests, types) |
 

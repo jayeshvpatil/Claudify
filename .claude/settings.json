@@ -31,6 +31,12 @@
       "Bash(git pull:*)",
       "Bash(railway status:*)",
       "Bash(railway logs:*)",
+      "Bash(gcloud --version:*)",
+      "Bash(gcloud config:*)",
+      "Bash(gcloud run services logs:*)",
+      "Bash(gcloud run services describe:*)",
+      "Bash(docker build:*)",
+      "Bash(docker images:*)",
       "Bash(mkdir:*)",
       "Bash(ls:*)",
       "Bash(lsof:*)",
@@ -48,7 +54,8 @@
       "Bash(rm -rf /*)",
       "Bash(rm -rf ~*)",
       "Bash(sudo:*)",
-      "Bash(railway up --environment production:*)"
+      "Bash(railway up --environment production:*)",
+      "Bash(gcloud run deploy*--no-traffic*)"
     ]
   },
   "hooks": {
@@ -60,6 +67,18 @@
             "type": "command",
             "command": "bash -c 'INPUT=\"$CLAUDE_TOOL_INPUT\"; if echo \"$INPUT\" | grep -qE \"(rm -rf [/~]|sudo |curl.*\\| *sh|wget.*\\| *sh)\"; then echo \"BLOCKED: Dangerous command pattern detected. Rewrite to be more specific.\" >&2; exit 1; fi'",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FILE=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r \".file_path // empty\" 2>/dev/null); if [ -n \"$FILE\" ] && echo \"$FILE\" | grep -qE \"\\.(ts|tsx|js|jsx|json|css)$\"; then bunx biome check --write \"$FILE\" 2>/dev/null; fi; exit 0'",
+            "timeout": 10
           }
         ]
       }

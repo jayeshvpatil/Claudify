@@ -2,7 +2,7 @@
 
 [One-line description of what this project does.]
 
-Built with Bun, React, and deployed on Railway.
+Built with Bun, React, and deployed on Railway / GCP Cloud Run.
 
 ## Stack
 
@@ -11,19 +11,21 @@ Built with Bun, React, and deployed on Railway.
 - **Backend**: Bun.serve() with route handlers
 - **Linting**: Biome
 - **Testing**: bun:test
-- **Deployment**: Railway
+- **Deployment**: Railway, GCP Cloud Run
 
 ## Commands
 
 ```bash
-bun run dev          # Start dev server with HMR
-bun run build        # Build for production
-bun run start        # Run production build
-bun test             # Run tests
-bun run qa           # Lint + typecheck + test
-bun run deploy:dev   # Deploy to Railway dev
-bun run deploy:prod  # Deploy to Railway production
-bun run db:migrate   # Run database migrations
+bun run dev             # Start dev server with HMR
+bun run build           # Build for production
+bun run start           # Run production build
+bun test                # Run tests
+bun run qa              # Lint + typecheck + test
+bun run deploy:dev      # Deploy to Railway dev
+bun run deploy:prod     # Deploy to Railway production
+bun run deploy:gcp      # Deploy to GCP Cloud Run staging
+bun run deploy:gcp:prod # Deploy to GCP Cloud Run production
+bun run db:migrate      # Run database migrations
 ```
 
 ## Bun-First Development
@@ -38,65 +40,7 @@ Use Bun for everything. Do NOT use Node.js equivalents.
 - `bunx <pkg>` not `npx <pkg>`
 - Bun auto-loads `.env` — do NOT use dotenv
 
-## Bun Native APIs
-
-Use these instead of npm packages:
-
-| Use this | Not this |
-|----------|----------|
-| `Bun.serve()` | express, fastify, hono |
-| `bun:sqlite` | better-sqlite3 |
-| `Bun.sql` | pg, postgres.js |
-| `Bun.redis` | ioredis |
-| `WebSocket` (built-in) | ws |
-| `Bun.file()` | node:fs readFile/writeFile |
-| `Bun.$\`cmd\`` | execa |
-| `Bun.password` | bcrypt |
-| `Bun.serve()` static routes | vite |
-
-## Frontend Pattern
-
-Use Bun's HTML imports — HTML files can directly import .tsx/.jsx/.js and Bun transpiles + bundles automatically.
-
-**Server entry** (`src/index.ts`):
-```ts
-import homepage from "./index.html";
-
-Bun.serve({
-  port: Number(Bun.env.PORT) || 3000,
-  routes: {
-    "/": homepage,
-    "/api/health": {
-      GET: () => Response.json({ status: "ok" }),
-    },
-  },
-  development: { hmr: true, console: true },
-});
-```
-
-**HTML entry** (`src/index.html`):
-```html
-<html>
-<body>
-  <div id="root"></div>
-  <script type="module" src="./app.tsx"></script>
-</body>
-</html>
-```
-
-**React root** (`src/app.tsx`):
-```tsx
-import { createRoot } from "react-dom/client";
-import "./styles.css";
-
-function App() {
-  return <h1>Hello</h1>;
-}
-
-createRoot(document.getElementById("root")!).render(<App />);
-```
-
-Run with: `bun --hot ./src/index.ts`
+For Bun native API reference and frontend HTML import patterns, see @.claude/rules/bun-conventions.md
 
 ## Project Structure
 
@@ -113,12 +57,16 @@ scripts/
   migrate.ts         # DB migration runner
   migrations/        # Timestamped migration files
 docs/                # Documentation
+.claude/
+  rules/             # Auto-loaded context rules (Bun, testing, deploy, security)
+  commands/           # Slash commands (/dev, /test, /qa, /review, /deploy-*, /new-feature)
+  settings.json      # Plugins, permissions, hooks
 ```
 
 ## Code Style
 
 - TypeScript strict mode everywhere
-- Biome for linting and formatting (`bunx biome check`)
+- Biome for linting and formatting (auto-runs on every file save via PostToolUse hook)
 - `const` over `let`, never `var`
 - Explicit return types on exported functions
 - `Response.json()` for JSON API responses
@@ -127,30 +75,27 @@ docs/                # Documentation
 
 ## Testing
 
-- Use `bun:test` — import { test, expect, describe, beforeAll, afterAll, mock }
+- Use `bun:test` — import { describe, expect, test, beforeAll, afterAll, mock }
 - Co-locate tests next to source: `<module>.test.ts`
-- Run all: `bun test`
-- Run one: `bun test <path>`
-- Watch: `bun test --watch`
+- Run all: `bun test` | Run one: `bun test <path>` | Watch: `bun test --watch`
 
 ## Git Workflow
 
 - Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
-- Run `bun run qa` before committing (pre-commit hook does this automatically)
+- Pre-commit hook runs `bun run qa` automatically (lint + typecheck + test)
 - Branch naming: `feat/description`, `fix/description`
 - Keep commits small and focused
 
-## Railway Deployment
+## Workflow
 
-- Env vars are set in Railway dashboard, not in code
-- Build: `bun install && bun run build`
-- Start: `bun start`
-- Dev deploy: `railway up --environment development`
-- Prod deploy: `railway up --environment production`
-- Railway auto-deploys on push to main
+Before writing code for non-trivial tasks, describe your approach and wait for approval. Break large features into smaller steps.
+
+## Agent Guide
+
+For prompting patterns, slash commands, plugins, MCP tools, and team workflow, see @agents.md
 
 ## Debugging
 
 - Use `bun --hot ./src/index.ts` for dev with HMR
-- For Bun API questions, ask Claude to "use context7" for live docs
+- For Bun API questions, use context7 MCP for live docs
 - Bun type docs: `node_modules/bun-types/docs/**/*.mdx`

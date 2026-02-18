@@ -1,23 +1,25 @@
 # Claudify
 
-A pre-configured starter repo for building applications with Claude Code, Bun, and Railway.
+A pre-configured starter repo for building applications with Claude Code, Bun, and Railway / GCP Cloud Run.
 
 Clone it, customize it, start building.
 
 ## What's Included
 
 **Claude Code Configuration**
-- `CLAUDE.md` — Project context with Bun-first conventions
-- `.claude/settings.json` — 7 plugins, permissions, pre-commit hooks, safety guards
+- `CLAUDE.md` — Lean project context with `@import` references to modular rules
+- `.claude/rules/` — Auto-loaded context rules (Bun conventions, testing, deployment, security)
+- `.claude/settings.json` — 7 plugins, permissions, 3 hooks (pre-commit QA, bash safety, auto-format)
 - `.mcp.json` — context7 (live docs) + sequential-thinking (complex reasoning)
-- 8 slash commands for dev, test, QA, review, deploy, migrate, scaffold
+- `agents.md` — Agent usage guide (imported via `@agents.md` in CLAUDE.md)
+- 10 slash commands for dev, test, QA, review, deploy, migrate, scaffold
 
 **Opinionated Stack**
 - Bun runtime (not Node)
 - Bun.serve() with HTML imports (not Express, not Vite)
 - React 19
 - Biome linting (not ESLint)
-- Railway deployment
+- Railway + GCP Cloud Run deployment
 - bun:test
 
 ## Quick Start
@@ -50,6 +52,7 @@ After cloning, update these files for your project:
 2. **`package.json`** — Change `name`, `version`, `description`
 3. **`.env`** — Set your environment variables
 4. **`.claude/settings.json`** — Adjust permissions for your team's needs
+5. **`.claude/rules/deployment.md`** — Update with your Railway/GCP project details
 
 ## Slash Commands
 
@@ -61,6 +64,8 @@ After cloning, update these files for your project:
 | `/review [file\|branch]` | Code review with Critical/Important/Suggestions |
 | `/deploy-dev` | QA check + deploy to Railway staging |
 | `/deploy-prod` | Strict safety checks + deploy to Railway production |
+| `/deploy-gcp` | QA check + deploy to GCP Cloud Run staging |
+| `/deploy-gcp-prod` | Strict safety checks + deploy to GCP Cloud Run production |
 | `/db-migrate [cmd]` | Generate, run, rollback, or check migration status |
 | `/new-feature [desc]` | Scaffold routes, tests, types for a new feature |
 
@@ -80,38 +85,80 @@ After cloning, update these files for your project:
 
 - **Pre-commit hook** — Runs lint + typecheck + test before every commit
 - **Bash safety guard** — Blocks `rm -rf /`, `sudo`, pipe-to-sh patterns
-- **Production deploy protection** — `/deploy-prod` requires main branch, clean state, and explicit confirmation
+- **Post-write auto-format** — Biome formats every file after Write/Edit
+- **Production deploy protection** — `/deploy-prod` and `/deploy-gcp-prod` require main branch, clean state, and explicit confirmation
 - **Permission deny list** — Dangerous commands are blocked by default
+
+## Architecture
+
+### How Claude Code Reads This Repo
+
+```
+CLAUDE.md (auto-loaded at start of every conversation)
+  ├── @agents.md (imported — prompting patterns, slash commands, plugins)
+  └── @.claude/rules/bun-conventions.md (referenced — Bun API table, frontend patterns)
+
+.claude/rules/ (ALL auto-loaded by Claude Code)
+  ├── bun-conventions.md — Bun native APIs, HTML imports pattern
+  ├── testing.md — bun:test conventions (scoped to *.test.ts files)
+  ├── deployment.md — Railway + GCP Cloud Run
+  └── security.md — Secrets, permissions, hooks
+
+.claude/settings.json (auto-loaded)
+  ├── enabledPlugins — 7 plugins
+  ├── permissions — allow/deny lists
+  └── hooks — PreToolUse, PostToolUse, PreCommit
+
+.mcp.json (auto-discovered)
+  ├── context7 — Live library documentation
+  └── sequential-thinking — Structured reasoning
+```
 
 ## Project Structure
 
 ```
 Claudify/
 ├── .claude/
-│   ├── commands/       # 8 slash commands
-│   ├── settings.json   # Plugins, permissions, hooks (shared)
-│   └── settings.local.json.example  # Personal override template
+│   ├── commands/          # 10 slash commands
+│   │   ├── dev.md
+│   │   ├── test.md
+│   │   ├── qa.md
+│   │   ├── review.md
+│   │   ├── deploy-dev.md
+│   │   ├── deploy-prod.md
+│   │   ├── deploy-gcp.md
+│   │   ├── deploy-gcp-prod.md
+│   │   ├── db-migrate.md
+│   │   └── new-feature.md
+│   ├── rules/             # Auto-loaded context rules
+│   │   ├── bun-conventions.md
+│   │   ├── testing.md
+│   │   ├── deployment.md
+│   │   └── security.md
+│   ├── settings.json      # Plugins, permissions, hooks (shared)
+│   └── settings.local.json.example
 ├── src/
-│   ├── index.ts        # Bun.serve() entry point
-│   ├── index.html      # HTML entry (Bun imports)
-│   ├── app.tsx          # React root
-│   ├── styles.css       # Global styles
-│   ├── lib/             # Shared utilities
-│   ├── routes/          # API route handlers
-│   └── components/      # React components
+│   ├── index.ts           # Bun.serve() entry point
+│   ├── index.html         # HTML entry (Bun imports)
+│   ├── app.tsx            # React root
+│   ├── styles.css         # Global styles
+│   ├── lib/               # Shared utilities
+│   ├── routes/            # API route handlers
+│   └── components/        # React components
 ├── scripts/
-│   ├── migrate.ts       # Migration runner
-│   └── migrations/      # Migration files
+│   ├── migrate.ts         # Migration runner
+│   └── migrations/        # Migration files
 ├── docs/
 │   └── best-practices.md  # Team guide
-├── .mcp.json            # MCP servers (context7, sequential-thinking)
-├── CLAUDE.md            # Claude Code project context
-├── agents.md            # Agent usage guide
-└── package.json         # Bun project config
+├── .mcp.json              # MCP servers (context7, sequential-thinking)
+├── CLAUDE.md              # Lean project context (~90 lines) with @imports
+├── agents.md              # Agent usage guide (imported by CLAUDE.md)
+├── Dockerfile             # Multi-stage Bun build for GCP Cloud Run
+└── package.json           # Bun project config
 ```
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)** — Project conventions Claude follows
-- **[agents.md](agents.md)** — How to use Claude Code effectively
-- **[docs/best-practices.md](docs/best-practices.md)** — Team best practices, prompting patterns, hook examples, onboarding
+- **[CLAUDE.md](CLAUDE.md)** — Project conventions Claude follows (lean, with @imports)
+- **[agents.md](agents.md)** — How to use Claude Code effectively (imported by CLAUDE.md)
+- **[docs/best-practices.md](docs/best-practices.md)** — Team best practices, prompting patterns, rules/ examples, onboarding

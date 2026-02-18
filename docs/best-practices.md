@@ -14,7 +14,6 @@ Your `CLAUDE.md` is the single most important file for Claude Code. It reads thi
 - **Stack** — Runtime, framework, database, deployment target
 - **Commands** — dev, test, build, deploy. Claude will run these.
 - **"Use X, not Y" directives** — The most effective format. Claude follows these reliably.
-- **Code patterns** — Show a real example of your route handler, component, or test pattern.
 - **Project structure** — Where things live in the repo.
 - **Code style** — Naming conventions, error format, import patterns.
 - **Git workflow** — Commit message format, branch naming.
@@ -25,10 +24,11 @@ Your `CLAUDE.md` is the single most important file for Claude Code. It reads thi
 - Tutorials or explanations of *why* — Claude doesn't need justification, just directives
 - Information that changes frequently — put that in code comments
 - Secrets or env-specific values — use `.env` files
+- Code snippets that might go stale — use `@file` references instead ("prefer pointers over copies")
 
-### Keep It Concise
+### Keep It Lean
 
-Under 200 lines. Claude reads this every time. Bloated CLAUDE.md files dilute the important directives. If it's over 200 lines, ask: "Would I lose anything by cutting this?"
+Under 150 lines. Claude reads this every time — bloated files dilute the important directives. Move detailed context into `.claude/rules/` files (see section 9 below).
 
 ### The Most Effective Format
 
@@ -36,7 +36,22 @@ Under 200 lines. Claude reads this every time. Bloated CLAUDE.md files dilute th
 Use `Bun.serve()` for HTTP servers. Do NOT use express.
 ```
 
-This directive format ("Use X. Do NOT use Y.") is what Claude follows most reliably. Prefer it over explanations.
+This directive format ("Use X. Do NOT use Y.") is what Claude follows most reliably.
+
+### @Import Syntax
+
+CLAUDE.md can reference other files that get loaded into context:
+
+```markdown
+For Bun API details, see @.claude/rules/bun-conventions.md
+For agent guide, see @agents.md
+```
+
+Imports support:
+- Relative paths: `@agents.md`, `@.claude/rules/testing.md`
+- Home directory: `@~/.claude/my-global-rules.md`
+- Recursive imports up to 5 hops deep
+- Ignored inside code spans: `` `@anthropic/package` `` won't import
 
 ---
 
@@ -103,7 +118,7 @@ In Plan Mode, Claude explores the codebase, considers alternatives, and presents
 
 ### Pre-Commit QA Gate (this project uses this)
 
-Every commit runs lint + typecheck + test. If it fails, the commit is blocked. This catches issues before they enter the repo.
+Every commit runs lint + typecheck + test. If it fails, the commit is blocked.
 
 **When the hook blocks you:**
 1. Read the error output
@@ -112,6 +127,27 @@ Every commit runs lint + typecheck + test. If it fails, the commit is blocked. T
 4. Commit again
 
 Do NOT try to skip the hook. The issue is real.
+
+### PostToolUse Auto-Format (this project uses this)
+
+After every file Write or Edit, Biome auto-formats the changed file. This keeps code consistent without any manual formatting steps. The hook:
+
+```json
+{
+  "PostToolUse": [
+    {
+      "matcher": "Write|Edit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash -c 'FILE=$(echo \"$CLAUDE_TOOL_INPUT\" | jq -r \".file_path\"); bunx biome check --write \"$FILE\" 2>/dev/null; exit 0'",
+          "timeout": 10
+        }
+      ]
+    }
+  ]
+}
+```
 
 ### Environment-Aware Hooks
 
@@ -135,7 +171,7 @@ For teams that need different behavior per environment:
 
 ### Custom Validation Hooks
 
-Add project-specific checks. Example — block commits that include `console.log`:
+Block commits that include `console.log`:
 
 ```json
 {
@@ -151,6 +187,13 @@ Add project-specific checks. Example — block commits that include `console.log
   ]
 }
 ```
+
+### Hook Types
+
+Claude Code supports three hook handler types:
+- **command** — Run a shell script. Receives JSON on stdin, communicates via exit codes.
+- **prompt** — Send a prompt to a Claude model for yes/no evaluation.
+- **agent** — Spawn a subagent with Read, Grep, Glob tools for multi-turn verification.
 
 ---
 
@@ -178,8 +221,6 @@ For problems that need step-by-step thinking:
 - Debugging with multiple possible causes
 - Migration planning
 - Architecture trade-offs
-
-Claude will break the problem into steps and reason through each one.
 
 ---
 
@@ -215,12 +256,12 @@ The filename becomes the command: `my-command.md` → `/my-command`
 ### Secrets
 - Never put secrets in CLAUDE.md, settings.json, or committed files
 - Use `.env` (gitignored) for local secrets
-- Use Railway dashboard for deployed env vars
+- Use Railway dashboard or GCP Cloud Run console for deployed env vars
 - The `.env.example` file shows required vars without values
 
 ### Permissions
 - `.claude/settings.json` has an allow/deny list
-- Production deploy is denied by default — forces use of `/deploy-prod` with safety checks
+- Production deploys are denied by default — forces use of `/deploy-prod` or `/deploy-gcp-prod` with safety checks
 - The PreToolUse hook blocks dangerous shell patterns
 
 ### Code Review
@@ -238,9 +279,11 @@ The filename becomes the command: `my-command.md` → `/my-command`
 |------|-----------|-------|
 | `CLAUDE.md` | Yes | Team conventions |
 | `.claude/settings.json` | Yes | Team plugins, permissions, hooks |
+| `.claude/rules/*.md` | Yes | Team context rules (auto-loaded) |
 | `.claude/settings.local.json` | No | Personal overrides |
 | `.claude/commands/*.md` | Yes | Team slash commands |
 | `.mcp.json` | Yes | Team MCP servers |
+| `agents.md` | Yes | Team agent guide (imported by CLAUDE.md) |
 | `.env` | No | Personal env vars |
 | `.env.example` | Yes | Env var template |
 
@@ -258,7 +301,58 @@ The filename becomes the command: `my-command.md` → `/my-command`
 ### Evolving CLAUDE.md
 
 Treat CLAUDE.md like code:
-- When you establish a new pattern, add it to CLAUDE.md
-- When a pattern changes, update CLAUDE.md
-- Review CLAUDE.md changes in PRs like any other code
+- When you establish a new pattern, add it to CLAUDE.md or a rules/ file
+- When a pattern changes, update the relevant file
+- Review CLAUDE.md and rules/ changes in PRs like any other code
 - Use the `claude-md-management` plugin to help maintain it
+
+---
+
+## 9. Using `.claude/rules/` for Modular Context
+
+Instead of cramming everything into CLAUDE.md, use `.claude/rules/` files. These are **auto-loaded by Claude Code** without needing `@import`.
+
+### Why Rules Files?
+
+- **Auto-loaded** — Claude reads all `.claude/rules/*.md` at session start
+- **Path-scoped** — Rules can activate only for specific file patterns
+- **Organized** — Separate concerns: Bun conventions, testing, deployment, security
+- **Focused** — Claude gets the right context at the right time
+
+### Path Scoping with YAML Frontmatter
+
+Rules can be conditionally loaded based on which files Claude is working on:
+
+```yaml
+---
+paths: ["**/*.test.ts", "**/*.test.tsx"]
+---
+
+# Testing Rules
+Use bun:test exclusively...
+```
+
+This testing rule only loads when Claude is working on test files.
+
+### This Project's Rules
+
+| File | Scope | Contents |
+|------|-------|----------|
+| `bun-conventions.md` | All files | Bun native APIs, HTML imports pattern |
+| `testing.md` | `*.test.ts` files | bun:test conventions, co-location |
+| `deployment.md` | All files | Railway + GCP Cloud Run |
+| `security.md` | All files | Secrets, permissions, hooks |
+
+### Adding New Rules
+
+Create a `.md` file in `.claude/rules/`:
+```markdown
+---
+paths: ["src/routes/**"]
+---
+
+# API Route Conventions
+- All routes return Response.json()
+- Error format: { error: string, details?: string }
+- Validate input with Zod schemas
+```
